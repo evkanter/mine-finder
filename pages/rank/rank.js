@@ -19,12 +19,7 @@ export default class Rank extends React.Component {
     super()
   }
 
-  resetRank() {
-    this.props.store.gameStore.resetAsyncData();
-  }
-
   render() {
-//    this.resetRank();
     let rank = this.props.store.gameStore.currentRankings;
 
     return (

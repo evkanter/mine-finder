@@ -292,7 +292,6 @@ class GameStore {
             );
         } else {
             if ((this.currentGame.gameboard[a][b].landMinesTouchingIt === 0) && (this.currentGame.gameboard[a][b].openPatch > 0)) {
-                //this.openAllConnectedPieces(a,b);
                 this.openAllConnectedItems(this.currentGame.gameboard[a][b].openPatch);
             }
         }
@@ -380,37 +379,6 @@ class GameStore {
         }
     }
 
-    startOpenPiece(a,b) {
-        this.openPiece(a,b);        
-        this.calculatePoints();
-    }
-
-    openPiece(a,b) {
-        // Recursively opens up all pieces connected with 0 or 1 mines next to this item.
-        if (this.currentGame.gameboard[a][b].landMinesTouchingIt <= 0) {
-            this.unhide(a,b);
-            this.openAllConnectedPieces(a,b);
-        }
-    }
-
-
-    openAllConnectedPieces(a,b) {
-        // Opens up all pieces connected with 0 or 1 mines next to them.
-        for (let x = Math.max(a-1, 0); x <= Math.min(a+1, this.currentGame.squaresWide-1); x++) {
-            for (let y = Math.max(b-1, 0); y <= Math.min(b+1, this.currentGame.squaresTall-1); y++) {
-
-                if ((!this.currentGame.gameboard[x][y].isLandMine) && (!this.currentGame.gameboard[x][y].isOpen)) {
-                    if (this.currentGame.gameboard[x][y].landMinesTouchingIt === 0) {
-                        this.startOpenPiece(x,y);
-                    } else {
-                        this.startUnhide(x,y);
-                    }
-                }
-
-            }
-        }
-    }
-
     showIncorrectSquare(a,b) {
         this.currentGame.gameboard[a][b].incorrectlyUnhidden = true;
         this.currentGame.gameboard[a][b].isOpen = true;
@@ -455,7 +423,6 @@ class GameStore {
         let connectedItems = [openPatch];
         let unique = [...new Set(this.connectedPatch[openPatch])];
 
-        // 4 level nested connections
         for(let u=0; u<unique.length; u++) {
             if (unique[u] !== openPatch) {
                 let moreUnique = [...new Set(this.connectedPatch[unique[u]])];
