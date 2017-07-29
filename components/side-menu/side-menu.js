@@ -142,7 +142,7 @@ export default class AppSideMenu extends Component {
                         alignItems: 'center',
                         justifyContent: 'center'
                     }} >                    
-                        <GameBoard store={this.props.store} />
+                        <GameBoard key={this.props.store.gameStore.gameBoardKey.value}/>
                     </View>
                     <View style={{flex: 1, backgroundColor: '#333333', height: 90, alignItems: 'center', justifyContent: 'center'}} >
                         <Button 

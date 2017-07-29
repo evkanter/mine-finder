@@ -15,10 +15,6 @@ export default class Rank extends React.Component {
       store: PropTypes.object
   }
 
-  constructor () {
-    super()
-  }
-
   render() {
     let rank = this.props.store.gameStore.currentRankings;
 
@@ -36,7 +32,7 @@ export default class Rank extends React.Component {
               </View>:null}
 
               {rank.mostMinesCleared.mines > 0 ? <View style={{paddingBottom: 20, alignItems: 'center'}}>
-                <Text style={{fontSize: 20, color: '#990000'}}>Most mines cleared: {rank.mostMinesCleared.mines + ' mines'}</Text>
+                <Text style={{fontSize: 20, color: '#990000'}}>Most mines cleared: {rank.mostMinesCleared.mines}</Text>
                 <Text>({rank.mostMinesCleared.lastAchievedDate})</Text>
               </View>:null}
 
@@ -46,7 +42,7 @@ export default class Rank extends React.Component {
               </View>:null}
 
               {rank.highestPointsWin.points > 0 ? <View style={{paddingBottom: 20, alignItems: 'center'}}>
-                <Text style={{fontSize: 20, color: '#990000'}}>Highest points scored: {rank.highestPointsWin.points}</Text>
+                <Text style={{fontSize: 20, color: '#990000'}}>Highest pts. scored: {rank.highestPointsWin.points}</Text>
                 <Text>({rank.highestPointsWin.lastAchievedDate})</Text>
               </View>:null}
 

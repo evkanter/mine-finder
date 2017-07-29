@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { Image, Text, View, TouchableOpacity } from 'react-native';
 import PropTypes from 'prop-types';
-import { observer, inject } from 'mobx-react';
+import { observer, inject } from 'mobx-react/native';
 import { Icon } from 'react-native-elements';
 
 import Images from '../../core/services/images.service';
@@ -21,22 +21,22 @@ export default class GameSquare extends Component {
         isOpen: PropTypes.bool.isRequired,
         isLandMinePostActive: PropTypes.bool.isRequired,
         itemKey: PropTypes.number.isRequired,
-        openPatch: PropTypes.number.isRequired,
+        neighbors: PropTypes.object.isRequired,
         incorrectlyUnhidden: PropTypes.bool.isRequired,
+        randomKey: PropTypes.number.isRequired,
         squareWide: PropTypes.number.isRequired,
         squareTall: PropTypes.number.isRequired
     } 
 
     unhide() {
-        this.props.store.gameStore.startUnhide(this.props.squareWide,this.props.squareTall)
+        this.props.store.gameStore.startUnhide(this.props.itemKey)
     }
 
     addMineOnScreen() {
-        this.props.store.gameStore.addFlagOnScreen(this.props.squareWide,this.props.squareTall)
+        this.props.store.gameStore.addFlagOnScreen(this.props.itemKey)
     }
 
     determineWhichToShow(squareSize, fontSize) {
-
         let QtySquare;
         let QtySquareColor = ['white','blue','green','red','purple','maroon','darkolivegreen','orangered','royalblue','teal','black'];
 
@@ -108,7 +108,7 @@ export default class GameSquare extends Component {
         let display = this.props.store.gameStore.clearScreen.value;
 
         return (
-            <View style={{width: squareSize, height: squareSize, display: display?'none':'flex' }}>
+            <View key={this.props.randomKey} style={{width: squareSize, height: squareSize, display: display?'none':'flex' }}>
                 {actualButton}
             </View>
         );

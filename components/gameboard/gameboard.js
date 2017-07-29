@@ -1,11 +1,12 @@
 import React, { Component } from 'react';
 import { View } from 'react-native';
 import PropTypes from 'prop-types';
-import { observer, inject } from 'mobx-react';
+import { observer, inject, observable } from 'mobx-react';
 import { Grid, Col, Row } from 'react-native-elements';
 
 import GameSquare from './gamesquare';
 
+@inject('store')
 @observer
 export default class GameBoard extends Component {
 
@@ -17,21 +18,23 @@ export default class GameBoard extends Component {
         store: PropTypes.object
     }
 
-    createSquare(squareWide, squareTall) {
-        let square = this.props.store.gameStore.currentGame.gameboard[squareWide][squareTall];
+    createSquare(squareWide, squareTall, count) {
+        let square = this.props.store.gameStore.currentGame.gameboardArray[count];
         let squareSize = this.props.store.gameStore.currentGame.squaresSize;
 
         return ( 
-            <Col key={square.itemKey} style={{width: squareSize, height: squareSize }} >
+            <Col key={'C' + square.itemKey + square.randomKey} 
+                 style={{width: squareSize, height: squareSize }} >
                 <GameSquare 
-                    key={square.itemKey}
+                    key={'GS' + square.itemKey + square.randomKey}
                     isLandMine={square.isLandMine} 
                     landMinesTouchingIt={square.landMinesTouchingIt} 
                     isOpen={square.isOpen} 
                     isLandMinePostActive={square.isLandMinePostActive} 
                     itemKey={square.itemKey} 
+                    neighbors={square.neighbors} 
                     incorrectlyUnhidden = {square.incorrectlyUnhidden}
-                    openPatch = {square.openPatch}
+                    randomKey={square.randomKey}
                     squareWide={squareWide}
                     squareTall={squareTall}
                 />
@@ -40,15 +43,17 @@ export default class GameBoard extends Component {
     }
 
     createRow(currentRow) {
-        const rowGrid = [];
+        let rowGrid = [];
+        let count;
         for(let j=0; j<this.props.store.gameStore.currentGame.squaresWide; j++){
-            rowGrid.push(this.createSquare(j, currentRow));
+            count = (currentRow * this.props.store.gameStore.currentGame.squaresWide) + j;
+            rowGrid.push(this.createSquare(j, currentRow, count));
         }
         return (<Row key={'Row'+currentRow}>{rowGrid}</Row>);        
     }
 
     createFullGrid() {
-        const fullGrid = [];
+        let fullGrid = [];
         for(let i=0; i<this.props.store.gameStore.currentGame.squaresTall; i++) {
             fullGrid.push(this.createRow(i));
         }

@@ -78,9 +78,7 @@ export default class LandMineSettings extends React.Component {
                     <Picker.Item label="75" value="75" />
                     <Picker.Item label="80" value="80" />
                     <Picker.Item label="90" value="90" />
-                    <Picker.Item label="100" value="100" />
-                    <Picker.Item label="125" value="125" />
-                    <Picker.Item label="150" value="150" />
+                    <Picker.Item label="99" value="99" />
                 </Picker>
                 <Button onPress={this.updateSettings.bind(this)} title="Update"
                     color="white"

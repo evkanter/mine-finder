@@ -1,8 +1,8 @@
 import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Dimensions, ScrollView, Text, View } from 'react-native';
 import { observer, inject } from 'mobx-react/native';
 import PropTypes from 'prop-types';
-import { Icon } from 'react-native-elements';
+import { Grid, Col, Row, Icon } from 'react-native-elements';
 
 @inject('store')
 @observer
@@ -16,8 +16,12 @@ export default class Achievements extends React.Component {
       store: PropTypes.object
   }
 
-  constructor () {
-    super()
+  constructor (props) {
+    super(props);
+    this.state = {
+        textBoxSize: (Math.min(Dimensions.get('window').width, Dimensions.get('window').height) * (2/3)),
+        fontSizeBody: ((Math.min((2/3) * this.props.store.gameStore.currentGame.fontSize)-6), 18),
+    };
   }
 
   get clear40MinesInAGame() {
@@ -53,13 +57,20 @@ export default class Achievements extends React.Component {
   }
 
   printRow(message, isActive) {
-    return isActive?
-        <Text style={{fontSize: 20, color:'#990000', paddingTop:10}}>
-            <Icon name='heart' type='font-awesome' color='#990000' style={{width: 30, height: 16, paddingTop:10}} size={16} /> {message}
-        </Text>:
-        <Text style={{fontSize: 20, color:'#AAAAAA', paddingTop:10}}>
-            <Icon name='heart-o' type='font-awesome' color='#AAAAAA' style={{width: 30, height: 16, paddingTop:10}} size={20} /> {message}
-        </Text>      
+    let rowColor;
+
+    if (isActive) { rowColor = '#990000';} else { rowColor = '#AAAAAA';}
+
+    return (
+          <Row>
+            <Col style={{width: 30, height: 30, paddingTop:10}}>
+              <Icon name='heart' type='font-awesome' color={rowColor} style={{width: 30, height: 16, paddingTop:2}} size={16} />
+            </Col>
+            <Col style={{width: this.state.textBoxSize-30, height: 30, paddingTop:10}}>
+              <Text style={{fontSize: this.state.fontSizeBody, color: rowColor}}>{message}</Text>
+            </Col>
+          </Row>
+    )
   }
 
   render() {
@@ -70,7 +81,8 @@ export default class Achievements extends React.Component {
             centerContent={true}>
             <View style={{ flex: 1, backgroundColor: '#fff', borderWidth: 3, borderColor: 'gold', margin: 20, justifyContent: 'flex-end' }} >        
                 <View style={{ flex: 1, backgroundColor: '#fff', borderWidth: 3, borderColor: 'navy', justifyContent: 'flex-end' }} >        
-                    <View style={{ flex: 1, backgroundColor: '#fff', borderWidth: 3, borderColor: 'gold', padding: 20, justifyContent: 'flex-end' }} >                        
+                    <View style={{ flex: 1, backgroundColor: '#fff', borderWidth: 3, borderColor: 'gold', padding: 20, justifyContent: 'flex-end' }} >
+                      <Grid style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                         {this.clear40MinesInAGame}
                         {this.clear60MinesInAGame}
                         {this.clear80MinesInAGame}
@@ -79,6 +91,7 @@ export default class Achievements extends React.Component {
                         {this.cleared100Boards}
                         {this.won5InARow}
                         {this.won10InARow}
+                      </Grid>
                     </View>
                 </View>
             </View>

@@ -1,12 +1,10 @@
 import React, { Component } from 'react';
-import { action, observable, computed, extendObservable, autorun } from 'mobx';
-import { Alert, Dimensions } from 'react-native';
-import { AsyncStorage } from 'react-native';
-
+import { AsyncStorage, Alert, Dimensions } from 'react-native';
+import { action, observable, computed, extendObservable, toJS, autorun } from 'mobx';
+import _ from 'lodash';
 import moment from 'moment';
 
 class GameStore {
-
     defaultGame = observable({
         gameMode: 'Normal',
         landMines: 10,
@@ -14,7 +12,7 @@ class GameStore {
         squaresTall: 16,
         squareSize: 36,
         fontSize: 24,
-        gameboard: [],
+        gameboardArray: observable.array([]),
         statistics: {
             landMinesOnTheBoard: 0,
             landMinesUncovered: 0,
@@ -34,6 +32,16 @@ class GameStore {
     consecutiveWins = observable({value:0});
     totalWins = observable({value:0});
 
+    gameboardArray = [];
+    gameBoardKey = observable({value:Math.random()});
+    squaresChecked = [];
+
+    defaultFastestWin = observable({ timesAchieved: 0 });
+    defaultMostMinesCleared = observable({ timesAchieved: 0 });
+    defaultHighestLevelObtained = observable({ timesAchieved: 0 });
+    defaultHighestPointsWin = observable({ timesAchieved: 0 });
+    defaultGamesPlayed = observable({ games: 0, wins: 0, losses: 0 });
+    
     defaultAchievements = observable({
         clear40MinesInAGame: false,
         clear60MinesInAGame: false,
@@ -47,12 +55,6 @@ class GameStore {
     });
 
     currentAchievements = Object.assign({}, this.defaultAchievements);
-
-    defaultFastestWin = observable({ timesAchieved: 0 });
-    defaultMostMinesCleared = observable({ timesAchieved: 0 });
-    defaultHighestLevelObtained = observable({ timesAchieved: 0 });
-    defaultHighestPointsWin = observable({ timesAchieved: 0 });
-    defaultGamesPlayed = observable({ games: 0, wins: 0, losses: 0 });
 
     defaultRankings = {
         fastestWin: this.defaultFastestWin,
@@ -71,9 +73,14 @@ class GameStore {
     }
 
     @action runFirst() {
-        extendObservable(this.currentGame.gameboard, this.setBoard(this.currentGame.landMines, this.currentGame.squaresWide, this.currentGame.squaresTall) );
-        extendObservable(this.currentGame.statistics,         
-            {
+        this.gameBoardKey.value = Math.random();
+        this.setBoardArray(this.currentGame.landMines, this.currentGame.squaresWide, this.currentGame.squaresTall);
+        this.setBoardMinesAndNeighbors(this.currentGame.landMines, this.currentGame.squaresWide, this.currentGame.squaresTall);
+        this.extendObservableVariables();
+    }
+
+    extendObservableVariables() {
+        extendObservable(this.currentGame.statistics, {
                 landMinesOnTheBoard: this.currentGame.statistics.landMinesOnTheBoard,
                 landMinesUncovered: 0,
                 squaresUncovered: 0,
@@ -82,78 +89,108 @@ class GameStore {
                 finalTimer: 0,
                 isWin: false,
                 isLoss: false
-            }
-        );
-        this.connectOpenPatches();
+        });
+
+        this.currentGame.gameboardArray = observable.array(this.gameboardArray);
+
+        for (let a=0; a < this.currentGame.squaresTall * this.currentGame.squaresWide; a++) {
+            extendObservable(this.currentGame.gameboardArray[a], {
+                x: this.gameboardArray[a].x,
+                y: this.gameboardArray[a].y,
+                randomKey: this.gameboardArray[a].randomKey,
+                landMinesTouchingIt: this.gameboardArray[a].landMinesTouchingIt, 
+                neighbors: this.gameboardArray[a].neighbors,
+                isOpen: this.gameboardArray[a].isOpen, 
+                isLandMinePostActive: this.gameboardArray[a].isLandMinePostActive, 
+                itemKey: this.gameboardArray[a].itemKey, 
+                isLandMine: this.gameboardArray[a].isLandMine,
+                incorrectlyUnhidden: this.gameboardArray[a].incorrectlyUnhidden
+            });
+        }
     }
 
-    @action startClock() {
-        this.needsReset.value = true;
-    }
-
-    setBoard(landMines, squaresWide, squaresTall) {
-        var a,b;
-        var count = 0;
-        this.findSquareSize();
-        var counterMax = this.currentGame.squaresWide * this.currentGame.squaresTall;
-
-        this.currentGame.statistics.landMinesOnTheBoard = 0;
-        var randomizerArray = Array.apply(null, {length: counterMax}).map(Number.call, Number);
-        randomizerArray = this.shuffle(randomizerArray);
-        let starterGameboard = new Array(squaresWide);
-
-        for (let i = 0; i < squaresWide; i++) {
-            starterGameboard[i] = new Array(squaresTall);
-        }
-
-        for (a=0; a < squaresWide; a++) {
-            for (b=0; b < squaresTall; b++) {
-                starterGameboard[a][b] = {
-                    landMinesTouchingIt: 0, 
-                    isOpen: false, 
-                    isLandMinePostActive: false, 
-                    itemKey: count, 
-                    isLandMine: false,
-                    incorrectlyUnhidden: false,
-                    openPatch: 0
-                };
-
-                if (randomizerArray.indexOf(count) <= this.currentGame.landMines-1) {
-                    starterGameboard[a][b].isLandMine = true;
-                    this.currentGame.statistics.landMinesOnTheBoard++;
-                } else {
-                    starterGameboard[a][b].isLandMine = false;
-                }
-
-                count++;
-            }
-        }
-
-        function addLandminesToNeighbors(squaresWide,squaresTall) {
-            for (a=0; a < squaresWide; a++) {
-                for (b=0; b < squaresTall; b++) {
-                    if (starterGameboard[a][b].isLandMine) {
-                        for (let x = Math.max(a-1, 0); x <= Math.min(a+1, squaresWide-1); x++) {
-                            for (let y = Math.max(b-1, 0); y <= Math.min(b+1, squaresTall-1); y++) {
-
-                                if (starterGameboard[x][y]) {
-                                    if (typeof starterGameboard[x][y].landMinesTouchingIt == 'number') {
-                                        starterGameboard[x][y].landMinesTouchingIt=starterGameboard[x][y].landMinesTouchingIt+1;
-                                    } else {
-                                        starterGameboard[x][y].landMinesTouchingIt=1;
-                                    }
-                                }
-
-                            }
-                        }
+    calculateLandMineValues() {
+        let itemKey;
+        let importedArray = Object.assign({}, this.gameboardArray);        
+        let result = _.filter(importedArray, function(o) { return (o.isLandMine === true); })
+        let itemNeighbors = result.map(function(obj) { return obj.neighbors; });
+        
+        for (a=0; a < itemNeighbors.length; a++) {
+            for (b=0; b < itemNeighbors[a].length; b++) {
+                itemKey = itemNeighbors[a][b];
+                if (!this.gameboardArray[itemKey].isLandMine) {
+                    if (typeof this.gameboardArray[itemKey].landMinesTouchingIt === 'number') {
+                        this.gameboardArray[itemKey].landMinesTouchingIt = this.gameboardArray[itemKey].landMinesTouchingIt + 1;
+                    } else {
+                        this.gameboardArray[itemKey].landMinesTouchingIt = 1
                     }
                 }
             }
         }
+    }
 
-        addLandminesToNeighbors(squaresWide,squaresTall);
+    analyzeNeighborsByRowCol(row, col, count, squaresWide, squaresTall) {
+        let importedArray = Object.assign({}, this.gameboardArray);        
+
+        let result = _.filter(importedArray, function(o) { 
+            return ((o.x >= Math.max(row-1, 0)) 
+                && (o.x <= Math.min(row+1, squaresWide-1)) 
+                && (!(o.x == row && o.y == col))
+                && (o.y >= Math.max(col-1, 0))
+                && (o.y <= Math.min(col+1, squaresTall-1))
+            );
+        })
+        
+        let itemKeys = result.map(function(obj) { return obj.itemKey; });
+        this.gameboardArray[count].neighbors = itemKeys;
+    }
+
+    setBoardArray(landMines, squaresWide, squaresTall) {
+        let count = 0;
+        let counterMax = squaresWide * squaresTall;
+        this.currentGame.statistics.landMinesOnTheBoard = 0;
+        this.findSquareSize();
+        let randomizerArray = Array.apply(null, {length: counterMax}).map(Number.call, Number);
+        randomizerArray = this.shuffle(randomizerArray);
+
+        for (let a=0; a < squaresTall; a++) {
+            for (let b=0; b < squaresWide; b++) {
+                this.gameboardArray[count] = observable({
+                    x: b,
+                    y: a,
+                    landMinesTouchingIt: 0, 
+                    neighbors: [],
+                    isOpen: false, 
+                    isLandMinePostActive: false, 
+                    itemKey: count, 
+                    randomKey: Math.random(),
+                    isLandMine: false,
+                    incorrectlyUnhidden: false
+                });
+
+                if (randomizerArray.indexOf(count) <= this.currentGame.landMines-1) {
+                    this.gameboardArray[count].isLandMine = true;
+                    this.currentGame.statistics.landMinesOnTheBoard = this.currentGame.statistics.landMinesOnTheBoard + 1;
+                } else {
+                    this.gameboardArray[count].isLandMine = false;
+                }
+
+                count = count + 1;
+            }
+        }
+    }
+
+    setBoardMinesAndNeighbors(landMines, squaresWide, squaresTall) {
+        let count = 0;
+
+        for (a=0; a < squaresTall; a++) {
+            for (b=0; b < squaresWide; b++) {
+                this.analyzeNeighborsByRowCol(b, a, count, squaresWide, squaresTall);
+                count = count + 1;
+            }
+        }
+        this.calculateLandMineValues();
         this.clearScreen.value = false;
-        return starterGameboard;
     }
 
     shuffle(array) {
@@ -170,73 +207,229 @@ class GameStore {
         return array;
     }
 
-    patchNumber = 1;
-    connectedPatch = [];    
-
-    connectOpenPatches(squaresWide,squaresTall) {
-        this.patchNumber = 1;
-        this.restartConnectPatchArray();
-        for (a=0; a < this.currentGame.squaresWide; a++) {
-            for (b=0; b < this.currentGame.squaresTall; b++) {
-                if (this.currentGame.gameboard[a][b].isLandMine) {
-                    this.currentGame.gameboard[a][b].openPatch = -1;
-                } else {
-                    this.currentGame.gameboard[a][b].openPatch = this.getPatchOfNeighbor(a,b);
-                }
-            }
-        }
-    }
-
-    restartConnectPatchArray() {
-        this.connectedPatch = [];        
-    }
-
-    connectPatch(patchNumber1, patchNumber2) {
-        if (!this.connectedPatch[patchNumber1]) { this.connectedPatch[patchNumber1] = []; }
-        if (!this.connectedPatch[patchNumber2]) { this.connectedPatch[patchNumber2] = []; }
-        this.connectedPatch[patchNumber1].push(patchNumber2);            
-        this.connectedPatch[patchNumber2].push(patchNumber1);            
-    }
-
-    getPatchOfNeighbor(a,b) {
-
-        let newPatchNumber = this.patchNumber;
-        let thisPatch = 0;
-        let isOpenable = false;
-
-        for (let x = Math.max(a-1, 0); x <= Math.min(a+1, this.currentGame.squaresWide-1); x++) {
-            for (let y = Math.max(b-1, 0); y <= Math.min(b+1, this.currentGame.squaresTall-1); y++) {
-
-                if ((this.currentGame.gameboard[x][y].landMinesTouchingIt === 0) && (!isOpenable)) {
-                    isOpenable = true;
-                }
-
-                if (this.currentGame.gameboard[x][y].openPatch > 0) {
-                    if (thisPatch === 0) {
-                        thisPatch = this.currentGame.gameboard[x][y].openPatch;
-                    } else {
-                        if (this.currentGame.gameboard[x][y].landMinesTouchingIt >= 0) {
-                            this.connectPatch(thisPatch, this.currentGame.gameboard[x][y].openPatch);
-                        }
-                    }
-                }
-            }
-        }
-
-        if (isOpenable) {
-            if (thisPatch === 0) {
-                this.patchNumber = this.patchNumber + 1;
-                return newPatchNumber
-            } else {
-                return thisPatch;
-            }
-        } else {
-            return 0;                
-        }
+    @action startClock() {
+        this.needsReset.value = true;
     }
 
     @action setTimeValue(timer) {
         this.currentGame.statistics.finalTimer = timer;
+    }
+
+    @action calculatePoints() {
+        let level = this.consecutiveWins.value + 1;
+        let squaresUncovered = this.currentGame.statistics.squaresUncovered;
+        let squaresUncoveredNotZero = this.currentGame.statistics.squaresUncoveredNotZero;
+        let minesUncovered = this.currentGame.statistics.landMinesUncovered;
+        let isWin = this.currentGame.statistics.isWin;
+        let finalTimer = this.currentGame.statistics.finalTimer;
+        let points = ((200 * minesUncovered) + (50 * squaresUncoveredNotZero));
+        let timerBonus = 0;
+        if (isWin && this.currentGame.statistics.finalTimer > 0 && this.currentGame.statistics.finalTimer < 400) {
+            timerBonus = (4000 - (finalTimer * 10));
+            points = points + timerBonus;
+        }
+        points = level * points;
+        this.currentGame.statistics.gamePoints = points;
+    }
+
+    checkIfMineIsUncovered(count) {
+        if (this.currentGame.gameboardArray[count].isLandMine) {
+            this.showIncorrectSquare(count);		
+            this.showLoserBoard();
+
+            Alert.alert('Oops!','You uncovered a mine, sorry, Try again!',[{text: 'New Game', onPress: () => this.startNewGame()}],{ cancelable: false });
+
+        } else {
+            if ((this.currentGame.gameboardArray[count].landMinesTouchingIt === 0) && (this.currentGame.gameboardArray[count].neighbors.length > 0)) {
+                this.startAllSquaresToCheck(count);
+            }
+        }
+    }
+
+    checkIfMineGuessWasIncorrect(count) {
+        if (!this.currentGame.gameboardArray[count].isLandMine) {
+            this.showIncorrectSquare(count);		
+            this.showLoserBoard();
+
+            Alert.alert( 'Oops!', 'That was not a mine, sorry, Try again!', [{text: 'New Game', onPress: () => this.startNewGame()}],{ cancelable: false });
+
+        } else {
+            this.currentGame.statistics.landMinesUncovered = this.currentGame.statistics.landMinesUncovered+1;            
+            this.checkForSuccess();
+        }
+    }
+
+    showIncorrectSquare(count) {
+        this.currentGame.gameboardArray[count].incorrectlyUnhidden = true;
+        this.currentGame.gameboardArray[count].isOpen = true;
+    }
+
+    showAllTilesBoard() {
+        for(let i=0; i<this.currentGame.squaresWide * this.currentGame.squaresTall; i++) {
+            if ((!this.currentGame.gameboardArray[i].isLandMine) && (!this.currentGame.gameboardArray[i].isOpen)) {
+                this.currentGame.gameboardArray[i].isOpen = true;
+            }
+        }  
+        this.calculatePoints();
+        this.saveAllResults();
+    }
+
+    showLoserBoard() {
+        this.isGameOver.value = true;
+        if (!this.currentGame.statistics.isWin) {
+            this.currentGame.statistics.isLoss = true;
+        }
+
+        for(let i=0; i<this.currentGame.squaresWide * this.currentGame.squaresTall; i++) {
+            if ((this.currentGame.gameboardArray[i].isLandMine) && (!this.currentGame.gameboardArray[i].isOpen)) {
+                this.currentGame.gameboardArray[i].isOpen = true;
+            }
+        }  
+        this.calculatePoints();
+        this.saveAllResults();
+
+        if (this.currentGame.statistics.isLoss) {
+            this.consecutiveWins.value = 0;
+        }
+
+    }
+
+    bulkUnhide() {
+        if (!this.isGameOver.value) {
+
+            let itemsToUnhide = [...new Set(this.squaresChecked)];
+            let importedArray = Object.assign({}, toJS(this.currentGame.gameboardArray));
+
+            let result = _.filter(importedArray, function(o) { 
+                return (itemsToUnhide.includes(o.itemKey) && (o.isLandMine == false) && (o.isOpen == false));
+            })
+
+            let itemKeys = result.map(function(obj) { return obj.itemKey; });
+            let size = _.size(itemKeys);
+
+            let squaresUncoveredNotZeroArray = result.map(function(obj) { return (obj.landMinesTouchingIt>0?1:0); });
+            let squaresUncoveredNotZero = squaresUncoveredNotZeroArray.reduce((a,b) => a+b, 0);
+
+            for(let c=0; c < size; c++) {
+                this.currentGame.gameboardArray[itemKeys[c]].isOpen=true;
+            }
+
+            this.currentGame.statistics.squaresUncoveredNotZero = this.currentGame.statistics.squaresUncoveredNotZero + squaresUncoveredNotZero;
+            this.currentGame.statistics.squaresUncovered = this.currentGame.statistics.squaresUncovered + size;
+        }
+    }
+    
+    openAllSquaresChecked() {
+        this.bulkUnhide();
+        this.calculatePoints();
+        this.squaresChecked = [];
+    }
+
+    startAllSquaresToCheck(count) {
+        this.setAllSquaresToCheck(count)    
+        this.openAllSquaresChecked();
+    }
+
+    setAllSquaresToCheck(count) {
+        let itemKey;
+        let allItemsToTry = this.currentGame.gameboardArray[count].neighbors;
+
+        for(let u=0; u<allItemsToTry.length; u++) {
+            itemKey = allItemsToTry[u];
+            if ((!this.squaresChecked.includes(itemKey)) && (!this.currentGame.gameboardArray[itemKey].isOpen) && (!this.currentGame.gameboardArray[itemKey].isLandMine)) {
+                this.squaresChecked.push(itemKey);
+                if (this.currentGame.gameboardArray[itemKey].landMinesTouchingIt === 0) {
+                    this.setAllSquaresToCheck(itemKey);
+                }
+            }
+        }
+    }
+
+    unhide(count) {
+        if (!this.isGameOver.value) {
+            if (!this.currentGame.gameboardArray[count].isOpen) {
+                this.currentGame.gameboardArray[count].isOpen=true;
+                if (this.currentGame.gameboardArray[count].landMinesTouchingIt > 0) {
+                    this.currentGame.statistics.squaresUncoveredNotZero = this.currentGame.statistics.squaresUncoveredNotZero + 1;
+                }
+                this.currentGame.statistics.squaresUncovered = this.currentGame.statistics.squaresUncovered + 1;
+            }
+            this.checkIfMineIsUncovered(count);
+        }
+    }
+
+    @action startUnhide(count) {
+        this.unhide(count);
+        this.calculatePoints();
+    }
+
+    @action startNewGame() {
+        this.isGameOver.value = false;
+        this.clearScreen.value = false;
+        this.currentGame = Object.assign({}, this.defaultGame);
+        this.runFirst();
+        this.startClock();
+    }
+
+    addFlagOnScreen(count) {
+        if (!this.isGameOver.value) {
+            this.currentGame.gameboardArray[count].isLandMinePostActive=true;
+            this.currentGame.gameboardArray[count].isOpen=true;        
+            this.checkIfMineGuessWasIncorrect(count);
+            this.calculatePoints();
+        }
+    }
+
+    findSquareSize() {
+        let usableBoard = (Math.min(Dimensions.get('window').width, Dimensions.get('window').height) - 40);
+        let squareSize = (usableBoard / this.currentGame.squaresWide);
+        let fontSize;
+        if (squareSize > 38) {
+            fontSize = Math.round(squareSize * (3/5));
+        } else {
+            fontSize = Math.round(squareSize * (2/3));
+        }
+        this.defaultGame.squareSize = squareSize;
+        this.defaultGame.fontSize = fontSize;
+        this.currentGame.squareSize = squareSize;
+        this.currentGame.fontSize = fontSize;
+    }
+
+    @action setBoardSize(width, height) {
+        this.defaultGame.squaresWide = width;
+        this.defaultGame.squaresTall = height;
+        this.currentGame.squaresWide = width;
+        this.currentGame.squaresTall = height;
+        this.isGameOver.value = true;
+        this.clearScreen.value = true;
+        this.findSquareSize();
+    }
+
+    @action setLandmines(mines) {
+        this.defaultGame.landMines = mines;
+        this.isGameOver.value = true;
+        this.clearScreen.value = true;
+    }
+
+    @action resetTheResetButtonOnTheClock() {
+        this.needsReset.value = false;
+    }
+
+    @action updateSettingsRefreshBoard() {
+        this.startNewGame();
+    }
+
+    checkForSuccess() {
+        if ((this.currentGame.statistics.landMinesOnTheBoard === this.currentGame.statistics.landMinesUncovered) 
+            && (this.currentGame.statistics.landMinesOnTheBoard > 0)) {
+
+            this.currentGame.statistics.isWin = true;
+            this.consecutiveWins.value = this.consecutiveWins.value + 1;
+            this.showAllTilesBoard();
+
+            Alert.alert('Congratulations, you won!','You scored ' + this.currentGame.statistics.gamePoints + ' points',[{text: 'New Game', onPress: () => this.startNewGame()}],{ cancelable: true });
+
+        }
     }
     
     saveCurrentGameResults() {
@@ -258,43 +451,6 @@ class GameStore {
             dayStamp: moment().format('l')
         };
         this.saveResults(gameStats);
-    }
-
-    @action calculatePoints() {
-        let level = this.consecutiveWins.value + 1;
-        let squaresUncovered = this.currentGame.statistics.squaresUncovered;
-        let squaresUncoveredNotZero = this.currentGame.statistics.squaresUncoveredNotZero;
-        let minesUncovered = this.currentGame.statistics.landMinesUncovered;
-        let isWin = this.currentGame.statistics.isWin;
-        let finalTimer = this.currentGame.statistics.finalTimer;
-        let points = ((200 * minesUncovered) + (50 * squaresUncoveredNotZero));
-        let timerBonus = 0;
-        if (isWin && this.currentGame.statistics.finalTimer > 0 && this.currentGame.statistics.finalTimer < 400) {
-            timerBonus = (4000 - (finalTimer * 10));
-            points = points + timerBonus;
-        }
-        points = level * points;
-        this.currentGame.statistics.gamePoints = points;
-    }
-
-    checkIfMineIsUncovered(a,b) {
-        if (this.currentGame.gameboard[a][b].isLandMine) {
-            this.showIncorrectSquare(a,b);		
-            this.showLoserBoard();
-
-            Alert.alert(
-                'Oops!',
-                'You uncovered a mine, sorry, Try again!',
-                [
-                    {text: 'New Game', onPress: () => this.startNewGame()}
-                ],
-                { cancelable: false }
-            );
-        } else {
-            if ((this.currentGame.gameboard[a][b].landMinesTouchingIt === 0) && (this.currentGame.gameboard[a][b].openPatch > 0)) {
-                this.openAllConnectedItems(this.currentGame.gameboard[a][b].openPatch);
-            }
-        }
     }
 
     checkPastGamesForAchievements() {
@@ -350,216 +506,15 @@ class GameStore {
         }
 
         function sendAlert(message) {
-            Alert.alert(
-                'Congratulations!',
-                message,
-                [
-                    {text: 'OK', onPress: () => {}, style: 'cancel'}
-                ],
-                { cancelable: false }
-            );
+
+            Alert.alert('Congratulations!',message,[{text: 'OK', onPress: () => {}, style: 'cancel'}],{ cancelable: false });
+
         }
     }
-
-    checkIfMineGuessWasIncorrect(a,b) {
-        if (!this.currentGame.gameboard[a][b].isLandMine) {
-            this.showIncorrectSquare(a,b);		
-            this.showLoserBoard();
-            Alert.alert(
-                'Oops!',
-                'That was not a mine, sorry, Try again!',
-                [
-                    {text: 'New Game', onPress: () => this.startNewGame()}
-                ],
-                { cancelable: false }
-            );
-        } else {
-            this.currentGame.statistics.landMinesUncovered = this.currentGame.statistics.landMinesUncovered+1;            
-            this.checkForSuccess();
-        }
-    }
-
-    showIncorrectSquare(a,b) {
-        this.currentGame.gameboard[a][b].incorrectlyUnhidden = true;
-        this.currentGame.gameboard[a][b].isOpen = true;
-    }
-
-    showAllTilesBoard() {
-        for(var i=0; i<this.currentGame.squaresWide; i++) {
-            for(var j=0; j<this.currentGame.squaresTall; j++){
-                if ((!this.currentGame.gameboard[i][j].isLandMine) && (!this.currentGame.gameboard[i][j].isOpen)) {
-                    this.currentGame.gameboard[i][j].isOpen = true;
-                }
-            }
-        }  
-        this.calculatePoints();
-        this.saveAllResults();
-    }
-
-    showLoserBoard() {
-        this.isGameOver.value = true;
-        if (!this.currentGame.statistics.isWin) {
-            this.currentGame.statistics.isLoss = true;
-        }
-
-        for(let i=0; i<this.currentGame.squaresWide; i++) {
-            for(let j=0; j<this.currentGame.squaresTall; j++){
-                if ((this.currentGame.gameboard[i][j].isLandMine) && (!this.currentGame.gameboard[i][j].isOpen)) {
-                    this.currentGame.gameboard[i][j].isOpen = true;
-                }
-            }
-        }  
-        this.calculatePoints();
-        this.saveAllResults();
-
-        if (this.currentGame.statistics.isLoss) {
-            this.consecutiveWins.value = 0;
-        }
-
-    }
-
-    
-    openAllConnectedItems(openPatch) {
-        let connectedItems = [openPatch];
-        let unique = [...new Set(this.connectedPatch[openPatch])];
-
-        for(let u=0; u<unique.length; u++) {
-            if (unique[u] !== openPatch) {
-                let moreUnique = [...new Set(this.connectedPatch[unique[u]])];
-
-                for(let v=moreUnique.length-1; v >= 0; v--) {
-                    if ((moreUnique[v] !== openPatch) && (moreUnique[v] !== unique[u])) {
-                        let evenMoreUnique = [...new Set(this.connectedPatch[moreUnique[v]])];
-
-                        for(let w=0; w < evenMoreUnique.length; w++) {
-                            if ((evenMoreUnique[w] !== openPatch) && (evenMoreUnique[w] !== moreUnique[v]) && (evenMoreUnique[w] !== unique[u])) {
-                                let oneMoreUnique = [...new Set(this.connectedPatch[evenMoreUnique[w]])];
-
-                                for(let x=0; x < oneMoreUnique.length; x++) {
-                                    connectedItems.push(oneMoreUnique[x]);
-                                }                
-                            }
-                            connectedItems.push(evenMoreUnique[w]);
-                        }                
-                    }
-                    connectedItems.push(moreUnique[v]);
-                }                
-            }
-            connectedItems.push(unique[u]);
-        }
-
-        if (openPatch > 0) {
-            for(let i=0; i<this.currentGame.squaresWide; i++) {
-                for(let j=0; j<this.currentGame.squaresTall; j++) {
-                    if ((connectedItems.includes(this.currentGame.gameboard[i][j].openPatch)) && (!this.currentGame.gameboard[i][j].isOpen)) {
-                        this.currentGame.gameboard[i][j].isOpen = true;
-                    }
-                }
-            }  
-        }
-        this.calculatePoints();
-    }
-    
 
     saveAllResults() {
         this.saveCurrentGameResults();
         this.checkGameForAchievements();
-    }
-
-
-    @action startNewGame() {
-        this.isGameOver.value = false;
-        this.currentGame = Object.assign({}, this.defaultGame);
-        this.runFirst();
-        this.startClock();
-    }
-
-    @action startUnhide(a,b) {
-        this.unhide(a,b);
-        this.calculatePoints();
-    }
-
-    unhide(a,b) {
-        if (!this.isGameOver.value) {
-            if (!this.currentGame.gameboard[a][b].isOpen) {
-                this.currentGame.gameboard[a][b].isOpen=true;
-                if (this.currentGame.gameboard[a][b].landMinesTouchingIt > 0) {
-                    this.currentGame.statistics.squaresUncoveredNotZero = this.currentGame.statistics.squaresUncoveredNotZero + 1;
-                }
-                this.currentGame.statistics.squaresUncovered = this.currentGame.statistics.squaresUncovered + 1;
-            }
-            this.checkIfMineIsUncovered(a,b);
-        }
-    }
-
-    addFlagOnScreen(a,b) {
-        if (!this.isGameOver.value) {
-            this.currentGame.gameboard[a][b].isLandMinePostActive=true;
-            this.currentGame.gameboard[a][b].isOpen=true;        
-            this.checkIfMineGuessWasIncorrect(a,b);
-            this.calculatePoints();
-        }
-    }
-
-    findSquareSize() {
-        let usableBoard = (Math.min(Dimensions.get('window').width, Dimensions.get('window').height) - 40);
-        let squareSize = (usableBoard / this.currentGame.squaresWide);
-        let fontSize;
-        if (squareSize > 38) {
-            fontSize = Math.round(squareSize * (3/5));
-        } else {
-            fontSize = Math.round(squareSize * (2/3));
-        }
-        this.defaultGame.squareSize = squareSize;
-        this.defaultGame.fontSize = fontSize;
-        this.currentGame.squareSize = squareSize;
-        this.currentGame.fontSize = fontSize;
-    }
-
-    @action setBoardSize(width, height) {
-        this.defaultGame.squaresWide = width;
-        this.defaultGame.squaresTall = height;
-        this.currentGame.squaresWide = width;
-        this.currentGame.squaresTall = height;
-        this.isGameOver.value = true;
-        this.clearScreen.value = true;
-        this.findSquareSize();
-    }
-
-    @action setLandmines(mines) {
-        this.defaultGame.landMines = mines;
-        this.isGameOver.value = true;
-        this.clearScreen.value = true;
-    }
-
-    @action resetTheResetButtonOnTheClock() {
-        this.needsReset = observable({value:false});
-    }
-
-    @action updateSettingsRefreshBoard() {
-        this.startNewGame();
-    }
-
-    checkForSuccess() {
-        if ((this.currentGame.statistics.landMinesOnTheBoard === this.currentGame.statistics.landMinesUncovered) 
-            && (this.currentGame.statistics.landMinesOnTheBoard > 0)) {
-
-            this.currentGame.statistics.isWin = true;
-            this.consecutiveWins.value = this.consecutiveWins.value + 1;
-            this.showAllTilesBoard();
-
-            Alert.alert( 
-                'Congratulations, you won!', 
-                'You scored ' + this.currentGame.statistics.gamePoints + ' points',
-                [{text: 'New Game', onPress: () => this.startNewGame()}], 
-                { cancelable: true }
-            );
-        }
-    }
-
-    async saveResults(gameStats) {
-        await this.checkResultsToUpdateStatistics(gameStats);
-        await this.storeAsyncData();
     }
 
     checkHighestPointsWin(gameStats) {
@@ -610,6 +565,11 @@ class GameStore {
         }
     }
 
+    async saveResults(gameStats) {
+        await this.checkResultsToUpdateStatistics(gameStats);
+        await this.storeAsyncData();
+    }
+    
     @action async getAsyncData() {
         let previousRankings;
         const value = await AsyncStorage.getItem('STATS');
@@ -617,13 +577,13 @@ class GameStore {
         if ((value.length > 2) && (value !== '{}')) {
             previousRankings = JSON.parse(value);
 
-            this.totalWins.value = previousRankings.gamesPlayed.wins;
+            previousRankings.gamesPlayed.wins ? this.totalWins.value = previousRankings.gamesPlayed.wins : 0;
             this.currentRankings = {
-                fastestWin: observable(previousRankings.fastestWin),
-                mostMinesCleared: observable(previousRankings.mostMinesCleared),
-                highestLevelObtained: observable(previousRankings.highestLevelObtained),
-                highestPointsWin: observable(previousRankings.highestPointsWin),
-                gamesPlayed: observable(previousRankings.gamesPlayed)       
+                fastestWin: previousRankings.fastestWin,
+                mostMinesCleared: previousRankings.mostMinesCleared,
+                highestLevelObtained: previousRankings.highestLevelObtained,
+                highestPointsWin: previousRankings.highestPointsWin,
+                gamesPlayed: previousRankings.gamesPlayed 
             }
             this.checkPastGamesForAchievements();
         } else {
@@ -633,15 +593,12 @@ class GameStore {
 
     @action storeAsyncData() {
         let exportRankings = Object.assign({}, this.currentRankings);
-
-        AsyncStorage.setItem('STATS', JSON.stringify(exportRankings), () => {
-        });
+        AsyncStorage.setItem('STATS', JSON.stringify(exportRankings), () => {});
     }
 
     @action async resetAsyncData() {
         let exportRankings = Object.assign({}, this.defaultRankings);
-
-        await AsyncStorage.setItem('STATS', JSON.stringify(exportRankings), () => { });
+        await AsyncStorage.setItem('STATS', JSON.stringify(exportRankings), () => {});
         this.getAsyncData();
     }
 

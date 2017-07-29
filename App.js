@@ -6,7 +6,7 @@ import { StackNavigator } from 'react-navigation';
 import About from './pages/about/about';
 import Achievements from './pages/achievements/achievements';
 import BoardSize from './pages/settings/board-size';
-import HowToPlay from './pages/how-to-play/how-to-play2';
+import HowToPlay from './pages/how-to-play/how-to-play';
 import LandMineSettings from './pages/settings/landmine-settings';
 import Main from './pages/main/main';
 import Rank from './pages/rank/rank';
