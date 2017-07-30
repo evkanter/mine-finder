@@ -34,7 +34,10 @@ class GameStore {
 
     gameboardArray = [];
     gameBoardKey = observable({value:Math.random()});
-    squaresChecked = [];
+
+    explodeTemp = [];
+    explodeToCheck = [];
+    explodeMap = [];
 
     defaultFastestWin = observable({ timesAchieved: 0 });
     defaultMostMinesCleared = observable({ timesAchieved: 0 });
@@ -77,6 +80,7 @@ class GameStore {
         this.setBoardArray(this.currentGame.landMines, this.currentGame.squaresWide, this.currentGame.squaresTall);
         this.setBoardMinesAndNeighbors(this.currentGame.landMines, this.currentGame.squaresWide, this.currentGame.squaresTall);
         this.extendObservableVariables();
+        this.setUpExplodeIndex();
     }
 
     extendObservableVariables() {
@@ -103,6 +107,7 @@ class GameStore {
                 isOpen: this.gameboardArray[a].isOpen, 
                 isLandMinePostActive: this.gameboardArray[a].isLandMinePostActive, 
                 itemKey: this.gameboardArray[a].itemKey, 
+                explodeKey: this.gameboardArray[a].explodeKey,
                 isLandMine: this.gameboardArray[a].isLandMine,
                 incorrectlyUnhidden: this.gameboardArray[a].incorrectlyUnhidden
             });
@@ -141,10 +146,70 @@ class GameStore {
             );
         })
         
-        let itemKeys = result.map(function(obj) { return obj.itemKey; });
+        let itemKeys = result.map(function(o) { return o.itemKey; });
         this.gameboardArray[count].neighbors = itemKeys;
     }
 
+    setUpExplodeIndex() {
+        this.explodeMap = [];
+        this.explodeMap[0] = [];
+        this.explodeTemp = [];
+        this.explodeToCheck = [];
+
+        let importedArray = Object.assign({}, toJS(this.currentGame.gameboardArray));
+        let result = _.filter(importedArray, function(o) { return ((o.isLandMine == false)); })
+        this.explodeTemp = result.map(function(o) { return { itemKey: o.itemKey, landMinesTouchingIt: o.landMinesTouchingIt, explodeKey: o.explodeKey }; });
+
+        this.explodeNextItem();
+    }
+
+    explodeNextItem() {
+        if (this.explodeTemp.length > 0) {
+            let importedArray = this.explodeTemp;
+            let result = _.filter(importedArray, function(o) { return (o.explodeKey == 0);})
+
+            let nextToExplode = _.find(result, function (o) { return o.landMinesTouchingIt == 0 })
+            if (nextToExplode) {
+                this.startProcessExploder(nextToExplode.itemKey);
+                this.explodeNextItem();
+            }
+        }
+    }
+
+    startProcessExploder(count) {
+        this.processNeighborsToExplode(count)    
+        this.finishProcessExploder();
+        this.explodeToCheck = [];
+    }
+    
+    processNeighborsToExplode(count) {
+        let itemKey;
+        let allItemsToTry = this.currentGame.gameboardArray[count].neighbors;
+        this.explodeToCheck.push(count);
+
+        for(let u=0; u<allItemsToTry.length; u++) {
+            itemKey = allItemsToTry[u];
+            if ( (!this.explodeToCheck.includes(itemKey)) && (!this.gameboardArray[itemKey].isLandMine) ) {                        
+                this.explodeToCheck.push(itemKey);
+                if (this.currentGame.gameboardArray[itemKey].landMinesTouchingIt === 0) {
+                    this.processNeighborsToExplode(itemKey);
+                }
+            }
+        }        
+    }
+    
+    finishProcessExploder() {
+        let itemsToExplode = [...new Set(this.explodeToCheck)];
+        let size = _.size(itemsToExplode);
+        let nextExplodeMap = this.explodeMap.length;
+        this.explodeMap[nextExplodeMap] = itemsToExplode;
+
+        for(let c=0; c < size; c++) {
+            this.gameboardArray[itemsToExplode[c]].explodeKey=nextExplodeMap;
+            _.remove(this.explodeTemp, {itemKey: itemsToExplode[c] });
+        }
+    }
+    
     setBoardArray(landMines, squaresWide, squaresTall) {
         let count = 0;
         let counterMax = squaresWide * squaresTall;
@@ -163,6 +228,7 @@ class GameStore {
                     isOpen: false, 
                     isLandMinePostActive: false, 
                     itemKey: count, 
+                    explodeKey: 0,
                     randomKey: Math.random(),
                     isLandMine: false,
                     incorrectlyUnhidden: false
@@ -240,8 +306,8 @@ class GameStore {
             Alert.alert('Oops!','You uncovered a mine, sorry, Try again!',[{text: 'New Game', onPress: () => this.startNewGame()}],{ cancelable: false });
 
         } else {
-            if ((this.currentGame.gameboardArray[count].landMinesTouchingIt === 0) && (this.currentGame.gameboardArray[count].neighbors.length > 0)) {
-                this.startAllSquaresToCheck(count);
+            if ((this.currentGame.gameboardArray[count].landMinesTouchingIt === 0) && (this.currentGame.gameboardArray[count].explodeKey > 0)) {
+                this.bulkExplode(this.currentGame.gameboardArray[count].explodeKey);
             }
         }
     }
@@ -294,14 +360,14 @@ class GameStore {
 
     }
 
-    bulkUnhide() {
+    bulkExplode(explodeMapToOpen) {
         if (!this.isGameOver.value) {
 
-            let itemsToUnhide = [...new Set(this.squaresChecked)];
+            let itemsToUnhide = [...new Set(this.explodeMap[explodeMapToOpen])];
             let importedArray = Object.assign({}, toJS(this.currentGame.gameboardArray));
 
             let result = _.filter(importedArray, function(o) { 
-                return (itemsToUnhide.includes(o.itemKey) && (o.isLandMine == false) && (o.isOpen == false));
+                return (itemsToUnhide.includes(o.itemKey) && (o.explodeKey == explodeMapToOpen) && (o.isOpen == false) && (o.isLandMine == false));
             })
 
             let itemKeys = result.map(function(obj) { return obj.itemKey; });
@@ -313,36 +379,8 @@ class GameStore {
             for(let c=0; c < size; c++) {
                 this.currentGame.gameboardArray[itemKeys[c]].isOpen=true;
             }
-
-            this.currentGame.statistics.squaresUncoveredNotZero = this.currentGame.statistics.squaresUncoveredNotZero + squaresUncoveredNotZero;
-            this.currentGame.statistics.squaresUncovered = this.currentGame.statistics.squaresUncovered + size;
-        }
-    }
-    
-    openAllSquaresChecked() {
-        this.bulkUnhide();
-        this.calculatePoints();
-        this.squaresChecked = [];
-    }
-
-    startAllSquaresToCheck(count) {
-        this.setAllSquaresToCheck(count)    
-        this.openAllSquaresChecked();
-    }
-
-    setAllSquaresToCheck(count) {
-        let itemKey;
-        let allItemsToTry = this.currentGame.gameboardArray[count].neighbors;
-
-        for(let u=0; u<allItemsToTry.length; u++) {
-            itemKey = allItemsToTry[u];
-            if ((!this.squaresChecked.includes(itemKey)) && (!this.currentGame.gameboardArray[itemKey].isOpen) && (!this.currentGame.gameboardArray[itemKey].isLandMine)) {
-                this.squaresChecked.push(itemKey);
-                if (this.currentGame.gameboardArray[itemKey].landMinesTouchingIt === 0) {
-                    this.setAllSquaresToCheck(itemKey);
-                }
-            }
-        }
+            
+        }        
     }
 
     unhide(count) {
@@ -428,7 +466,6 @@ class GameStore {
             this.showAllTilesBoard();
 
             Alert.alert('Congratulations, you won!','You scored ' + this.currentGame.statistics.gamePoints + ' points',[{text: 'New Game', onPress: () => this.startNewGame()}],{ cancelable: true });
-
         }
     }
     
@@ -506,9 +543,7 @@ class GameStore {
         }
 
         function sendAlert(message) {
-
             Alert.alert('Congratulations!',message,[{text: 'OK', onPress: () => {}, style: 'cancel'}],{ cancelable: false });
-
         }
     }
 
