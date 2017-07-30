@@ -7,9 +7,11 @@ import moment from 'moment';
 class GameStore {
     defaultGame = observable({
         gameMode: 'Normal',
+        gameDifficulty: 'easy',
+        isCustom: false,
         landMines: 10,
         squaresWide: 9,
-        squaresTall: 16,
+        squaresTall: 9,
         squareSize: 36,
         fontSize: 24,
         gameboardArray: observable.array([]),
@@ -118,7 +120,7 @@ class GameStore {
         let itemKey;
         let importedArray = Object.assign({}, this.gameboardArray);        
         let result = _.filter(importedArray, function(o) { return (o.isLandMine === true); })
-        let itemNeighbors = result.map(function(obj) { return obj.neighbors; });
+        let itemNeighbors = result.map(function(o) { return o.neighbors; });
         
         for (a=0; a < itemNeighbors.length; a++) {
             for (b=0; b < itemNeighbors[a].length; b++) {
@@ -302,8 +304,11 @@ class GameStore {
         if (this.currentGame.gameboardArray[count].isLandMine) {
             this.showIncorrectSquare(count);		
             this.showLoserBoard();
+            var startNewGame = () => this.startNewGame();
 
-            Alert.alert('Oops!','You uncovered a mine, sorry, Try again!',[{text: 'New Game', onPress: () => this.startNewGame()}],{ cancelable: false });
+            setTimeout(function(){ 
+                Alert.alert('Oops!','You uncovered a mine, sorry, Try again!',[{text: 'New Game', onPress: startNewGame}],{ cancelable: false });
+            }, 3000);
 
         } else {
             if ((this.currentGame.gameboardArray[count].landMinesTouchingIt === 0) && (this.currentGame.gameboardArray[count].explodeKey > 0)) {
@@ -316,8 +321,11 @@ class GameStore {
         if (!this.currentGame.gameboardArray[count].isLandMine) {
             this.showIncorrectSquare(count);		
             this.showLoserBoard();
+            var startNewGame = () => this.startNewGame();
 
-            Alert.alert( 'Oops!', 'That was not a mine, sorry, Try again!', [{text: 'New Game', onPress: () => this.startNewGame()}],{ cancelable: false });
+            setTimeout(function(){ 
+                Alert.alert( 'Oops!', 'That was not a mine, sorry, Try again!', [{text: 'New Game', onPress: startNewGame}],{ cancelable: false });
+            }, 3000);
 
         } else {
             this.currentGame.statistics.landMinesUncovered = this.currentGame.statistics.landMinesUncovered+1;            
@@ -449,6 +457,26 @@ class GameStore {
         this.clearScreen.value = true;
     }
 
+    @action setDifficulty(difficulty, width, height, mines) {
+        if ((this.defaultGame.gameDifficulty !== difficulty) || (difficulty === 'custom')) {
+            this.defaultGame.isCustom = (difficulty==='custom');
+            this.defaultGame.gameDifficulty = difficulty;
+            this.currentGame.isCustom = (difficulty==='custom');
+            this.currentGame.gameDifficulty = difficulty;
+            if ((width>0) && (height>0) && (mines>0)) {
+                this.defaultGame.squaresTall = width;
+                this.defaultGame.squaresWide = height;
+                this.currentGame.squaresTall = width;
+                this.currentGame.squaresWide = height;
+                this.defaultGame.landMines = mines;
+                this.currentGame.landMines = mines;
+            }
+            this.isGameOver.value = true;
+            this.clearScreen.value = true;
+            this.findSquareSize();
+        }
+    }
+
     @action resetTheResetButtonOnTheClock() {
         this.needsReset.value = false;
     }
@@ -465,7 +493,13 @@ class GameStore {
             this.consecutiveWins.value = this.consecutiveWins.value + 1;
             this.showAllTilesBoard();
 
-            Alert.alert('Congratulations, you won!','You scored ' + this.currentGame.statistics.gamePoints + ' points',[{text: 'New Game', onPress: () => this.startNewGame()}],{ cancelable: true });
+            var startNewGame = () => this.startNewGame();
+            var pointStatistics = this.currentGame.statistics.gamePoints;
+
+            setTimeout(function(){ 
+                Alert.alert('Congratulations, you won!','You scored ' + pointStatistics + ' points',[{text: 'New Game', onPress: startNewGame}],{ cancelable: true });
+            }, 1500);
+
         }
     }
     

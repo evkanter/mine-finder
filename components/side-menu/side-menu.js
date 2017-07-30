@@ -14,16 +14,10 @@ import GameBoard from '../gameboard/gameboard';
 
 const list = [
     {
-        title: 'Board Size',
-        icon: 'border-all',
-        iconType: 'material',
-        pageName: 'BoardSize'
-    },
-    {
-        title: 'Update Mine Quantity',
+        title: 'Update Difficulty Level',
         icon: 'bomb',
         iconType: 'font-awesome',
-        pageName: 'LandMineSettings'
+        pageName: 'DifficultyLevel'
     },
     {
         title: 'How to Play',
@@ -50,6 +44,7 @@ const list = [
         pageName: 'About'
     }
 ]
+
 
 @inject('store')
 @observer
@@ -132,7 +127,7 @@ export default class AppSideMenu extends Component {
                 onChange={this.onSideMenuChange.bind(this)}
                 menuPosition='left'
                 menu={MenuComponent}>
-                <ScrollView style={{flex: 1, backgroundColor: '#333333'}} zoomEnabled={true} minimumZoomScale={1} maximumZoomScale={3} >
+                <ScrollView style={{flex: 1, backgroundColor: '#333333'}} zoomEnabled={true} minimumZoomScale={1} maximumZoomScale={5} >
                     <View style={{flex: 1, backgroundColor: '#333333', alignItems: 'center', justifyContent: 'center'}} >
                         <Timer bombCount={this.props.store.gameStore.currentGame.statistics.landMinesOnTheBoard-this.props.store.gameStore.currentGame.statistics.landMinesUncovered} />
                     </View>

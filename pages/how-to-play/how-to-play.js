@@ -20,7 +20,7 @@ export default class HowToPlay extends React.Component {
         super(props);
         this.state = {
             textBoxSize: (Math.min(Dimensions.get('window').width, Dimensions.get('window').height) * (2/3)),
-            fontSizeHeadline: Math.min((2/3) * this.props.store.gameStore.currentGame.fontSize, 24),
+            fontSizeHeadline: ((Math.min((2/3) * this.props.store.gameStore.currentGame.fontSize), 24)),
             fontSizeBody: ((Math.min((2/3) * this.props.store.gameStore.currentGame.fontSize)-6), 18),
         };
     }
@@ -28,7 +28,7 @@ export default class HowToPlay extends React.Component {
     printTitleRow(message) {
         return  <Row>
                     <Col style={{width: this.state.textBoxSize, height: (2*(this.state.fontSizeHeadline+4)) }}>
-                        <Text style={{fontSize: this.state.fontSizeHeadline, color:'#990000'}}>{message}</Text>
+                        <Text style={{fontSize: this.state.fontSizeHeadline, color:'#990000', fontWeight: 'bold', textShadowColor: '#EFEFEF'}}>{message}</Text>
                     </Col>
                 </Row>
     }
