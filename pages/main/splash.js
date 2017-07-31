@@ -17,7 +17,11 @@ export default class Splash extends React.Component {
     constructor (props) {
         super(props);
     }
-    
+
+    static navigationOptions = ({ navigation, screenProps }) => ({
+        header: null
+    });    
+
     startNewGame(routeName = 'Main') {
         this.props.store.gameStore.startNewGame();
         this.changeRoute(routeName);

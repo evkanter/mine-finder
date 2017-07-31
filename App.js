@@ -1,13 +1,12 @@
 import React, { Component } from 'react';
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { StatusBar, Button, StyleSheet, Text, View } from 'react-native';
 import { observer, Provider, inject } from 'mobx-react';
 import { StackNavigator } from 'react-navigation';
 
 import About from './pages/about/about';
 import Achievements from './pages/achievements/achievements';
-import BoardSize from './pages/settings/board-size';
+import DifficultyLevel from './pages/settings/difficulty-level';
 import HowToPlay from './pages/how-to-play/how-to-play';
-import LandMineSettings from './pages/settings/landmine-settings';
 import Main from './pages/main/main';
 import Rank from './pages/rank/rank';
 import Splash from './pages/main/splash';
@@ -19,9 +18,8 @@ import AppSideMenu from './components/side-menu/side-menu';
 const MainRouter = StackNavigator({
     About: { screen: About },
     Achievements: { screen: Achievements },
-    BoardSize: { screen: BoardSize },
+    DifficultyLevel: { screen: DifficultyLevel },
     HowToPlay: { screen: HowToPlay },
-    LandMineSettings: { screen: LandMineSettings },
     Main: { screen: Main },
     Rank: { screen: Rank },
     Splash: { screen: Splash }
@@ -33,8 +31,8 @@ const MainRouter = StackNavigator({
 export default class App extends Component {
 
   constructor (props) {
-      super(props);
-      masterStore.gameStore.getAsyncData();
+    super(props);
+    masterStore.gameStore.getAsyncData();
   }
 
   toggleSideMenu() {
@@ -55,6 +53,7 @@ export default class App extends Component {
 
     return (
       <View style={{flex: 1}}>
+        <StatusBar hidden />
         <Provider store={masterStore}>
           <MainRouter screenProps={props} />
         </Provider>

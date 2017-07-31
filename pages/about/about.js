@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, Text, View, Linking } from 'react-native';
 import { Grid, Row, Col, Icon } from 'react-native-elements';
 import PropTypes from 'prop-types';
 import { observer, inject } from 'mobx-react';
@@ -23,6 +23,18 @@ export default class About extends React.Component {
             fontSizeHeadline: ((Math.min((2/3) * this.props.store.gameStore.currentGame.fontSize), 24)),
             fontSizeBody: ((Math.min((2/3) * this.props.store.gameStore.currentGame.fontSize)-6), 18),
         };
+    }
+
+    addLinkToOutsideUrl(url) {
+        Linking.openURL(url).catch();
+    }
+
+    printOutsideUrl(message, url) {
+        return  <Row>
+                    <Col style={{width: this.state.textBoxSize, height: (this.state.fontSizeBody+8)}}>
+                        <Text style={{fontSize: this.state.fontSizeBody, color:'#000000'}} onPress={() => this.addLinkToOutsideUrl(url)}>{message}</Text>
+                    </Col>
+                </Row>
     }
     
     printTitleRow(message) {
@@ -79,7 +91,10 @@ export default class About extends React.Component {
                             <Grid style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 }}>
                                 {this.printTitleRow('About the Game')}
                                 {this.printAboutContentRow('Created by Evan Kanter',1)}
-                                {this.printAboutContentRow('Copyright 2017',1)}
+                                {this.printAboutContentRow('Copyright 2017',2)}
+                                {this.printOutsideUrl('View the website','https://minefindergame.com')}
+                                {this.printOutsideUrl('Check out the source code','https://minefindergame.com/2017/07/26/open-source-code/')}
+                                {this.printOutsideUrl('Like it? Review us!','https://minefindergame.com/testimonials/')}
                             </Grid>
                         </View>
                     </View>

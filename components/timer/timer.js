@@ -63,7 +63,7 @@ export default class Timer extends Component {
         <Grid>
             <Row>
                 <Col style={{width:20}}><Icon name='star' type='font-awesome' color='#FFFFFF' style={{width: 20, height: 20}} size={16} /></Col>        
-                <Col style={{width:20, marginRight: 5}}>{this.state.fontLoaded ? <Text style={{fontFamily: 'Orbitron', color: '#FFFFFF', fontSize: 20}}>{this.props.store.gameStore.consecutiveWins.value}</Text>:null}</Col>
+                <Col style={{width:40, marginRight: 5}}>{this.state.fontLoaded ? <Text style={{fontFamily: 'Orbitron', color: '#FFFFFF', fontSize: 20}}>{this.props.store.gameStore.consecutiveWins.value}</Text>:null}</Col>
 
                 <Col style={{width:20}}><Icon name='bomb' type='font-awesome' color='#FFFFFF' style={{width: 20, height: 20}} size={16} /></Col>        
                 <Col style={{width:56, marginRight: 5}}>{this.state.fontLoaded ? <Text style={{fontFamily: 'Orbitron', color: '#FFFFFF', fontSize: 20}}>{this.props.bombCount>0?this.props.bombCount:0}</Text>:null}</Col>

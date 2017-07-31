@@ -63,7 +63,7 @@ export default class DifficultyLevel extends React.Component {
                             title='Easy'
                             checkedIcon='dot-circle-o'
                             uncheckedIcon='circle-o'
-                            containerStyle={{ height: 50, width: 200 }}
+                            containerStyle={{ height: 50, width: 250 }}
                             textStyle={{ color: 'black', fontSize: 20 }}
                             onPress={(value) => {this.setState({difficulty: 'easy', mines:10, rows:9, cols: 9 });} }
                             checked={this.state.difficulty==='easy'}
@@ -72,7 +72,7 @@ export default class DifficultyLevel extends React.Component {
                             title='Intermediate'
                             checkedIcon='dot-circle-o'
                             uncheckedIcon='circle-o'
-                            containerStyle={{ height: 50, width: 200 }}
+                            containerStyle={{ height: 50, width: 250 }}
                             textStyle={{ color: 'black', fontSize: 20 }}
                             onPress={(value) => {this.setState({difficulty: 'intermediate', mines:40, rows:16, cols: 16});} }
                             checked={this.state.difficulty==='intermediate'}
@@ -81,7 +81,7 @@ export default class DifficultyLevel extends React.Component {
                             title='Advanced'
                             checkedIcon='dot-circle-o'
                             uncheckedIcon='circle-o'
-                            containerStyle={{ height: 50, width: 200 }}
+                            containerStyle={{ height: 50, width: 250 }}
                             textStyle={{ color: 'black', fontSize: 20 }}
                             onPress={(value) => {this.setState({difficulty: 'advanced', mines:70, rows:24, cols: 16});} }
                             checked={this.state.difficulty==='advanced'}
@@ -90,7 +90,7 @@ export default class DifficultyLevel extends React.Component {
                             title='Expert'
                             checkedIcon='dot-circle-o'
                             uncheckedIcon='circle-o'
-                            containerStyle={{ height: 50, width: 200 }}
+                            containerStyle={{ height: 50, width: 250 }}
                             textStyle={{ color: 'black', fontSize: 20 }}
                             onPress={(value) => {this.setState({difficulty: 'expert', mines:99, rows:30, cols: 16});} }
                             checked={this.state.difficulty==='expert'}
@@ -99,7 +99,7 @@ export default class DifficultyLevel extends React.Component {
                             title='Custom'
                             checkedIcon='dot-circle-o'
                             uncheckedIcon='circle-o'
-                            containerStyle={{ height: 50, width: 200 }}
+                            containerStyle={{ height: 50, width: 250 }}
                             textStyle={{ color: 'black', fontSize: 20 }}
                             onPress={(value) => {this.setState({difficulty: 'custom', mines:this.props.store.gameStore.defaultGame.landMines, rows:this.props.store.gameStore.defaultGame.squaresTall, cols: this.props.store.gameStore.defaultGame.squaresWide});} }
                             checked={this.state.difficulty==='custom'}
@@ -111,7 +111,7 @@ export default class DifficultyLevel extends React.Component {
                                 minimumValue={10}
                                 maximumValue={150}
                                 step={5}
-                                style={{width: 210}}
+                                style={{width: 240}}
                                 thumbTintColor='#333333'
                                 onValueChange={(mines) => this.setState({mines})} />
 
@@ -123,7 +123,7 @@ export default class DifficultyLevel extends React.Component {
                                 minimumValue={9}
                                 maximumValue={100}
                                 step={1}
-                                style={{width: 210}}
+                                style={{width: 240}}
                                 thumbTintColor='#333333'
                                 onValueChange={(rows) => this.setState({rows})} />
 
@@ -135,7 +135,7 @@ export default class DifficultyLevel extends React.Component {
                                 minimumValue={9}
                                 maximumValue={16}
                                 step={1}
-                                style={{width: 210}}
+                                style={{width: 240}}
                                 thumbTintColor='#333333'
                                 onValueChange={(cols) => this.setState({cols})} />
                         </View>
