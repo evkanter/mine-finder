@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { AsyncStorage, Alert, Dimensions } from 'react-native';
+import { AsyncStorage, Alert, Dimensions, Platform } from 'react-native';
 import { action, observable, computed, extendObservable, toJS, autorun } from 'mobx';
 import _ from 'lodash';
 import moment from 'moment';
@@ -14,6 +14,8 @@ class GameStore {
         squaresTall: 9,
         squareSize: 36,
         fontSize: 24,
+        isAndroidThinMode: false,
+        thinModeMaximumCols: 9,
         gameboardArray: observable.array([]),
         statistics: {
             landMinesOnTheBoard: 0,
@@ -26,6 +28,28 @@ class GameStore {
             isLoss: false
         }
     });
+
+    difficultySettings = {
+        easy: { mines: 9, rows: 9, cols: 9 },
+        intermediate: { mines: 40, rows: 16, cols: 16 },
+        advanced: { mines: 70, rows: 24, cols: 16 },
+        expert: { mines: 99, rows: 30, cols: 16 },
+        easy_9: { mines: 9, rows: 9, cols: 9 },
+        intermediate_9: { mines: 40, rows: 28, cols: 9 },
+        advanced_9: { mines: 70, rows: 42, cols: 9 },
+        expert_9: { mines: 99, rows: 54, cols: 9 },
+        easy_12: { mines: 9, rows: 9, cols: 9 },
+        intermediate_12: { mines: 40, rows: 22, cols: 12 },
+        advanced_12: { mines: 70, rows: 32, cols: 12 },
+        expert_12: { mines: 99, rows: 40, cols: 12 },
+    }
+
+    currentDifficultySettings = {
+        easy: this.difficultySettings.easy,
+        intermediate: this.difficultySettings.intermediate,
+        advanced: this.difficultySettings.advanced,
+        expert: this.difficultySettings.expert,
+    }
 
     currentGame = Object.assign({}, this.defaultGame);
     needsReset = observable({value:false});
@@ -139,7 +163,7 @@ class GameStore {
     analyzeNeighborsByRowCol(row, col, count, squaresWide, squaresTall) {
         let importedArray = Object.assign({}, this.gameboardArray);        
 
-        let result = _.filter(importedArray, function(o) { 
+        let neighbors = _.filter(importedArray, function(o) { 
             return ((o.x >= Math.max(row-1, 0)) 
                 && (o.x <= Math.min(row+1, squaresWide-1)) 
                 && (!(o.x == row && o.y == col))
@@ -148,7 +172,7 @@ class GameStore {
             );
         })
         
-        let itemKeys = result.map(function(o) { return o.itemKey; });
+        let itemKeys = neighbors.map(function(o) { return o.itemKey; });
         this.gameboardArray[count].neighbors = itemKeys;
     }
 
@@ -392,15 +416,14 @@ class GameStore {
     }
 
     unhide(count) {
-        if (!this.isGameOver.value) {
-            if (!this.currentGame.gameboardArray[count].isOpen) {
-                this.currentGame.gameboardArray[count].isOpen=true;
-                if (this.currentGame.gameboardArray[count].landMinesTouchingIt > 0) {
-                    this.currentGame.statistics.squaresUncoveredNotZero = this.currentGame.statistics.squaresUncoveredNotZero + 1;
-                }
-                this.currentGame.statistics.squaresUncovered = this.currentGame.statistics.squaresUncovered + 1;
-            }
+        let square = this.currentGame.gameboardArray[count];
+        let stats = this.currentGame.statistics;
+
+        if ((!this.isGameOver.value) && (!square.isOpen)) {
+            square.isOpen=true;
+            stats.squaresUncovered++;
             this.checkIfMineIsUncovered(count);
+            if (square.landMinesTouchingIt > 0) { stats.squaresUncoveredNotZero++; }
         }
     }
 
@@ -486,8 +509,10 @@ class GameStore {
     }
 
     checkForSuccess() {
-        if ((this.currentGame.statistics.landMinesOnTheBoard === this.currentGame.statistics.landMinesUncovered) 
-            && (this.currentGame.statistics.landMinesOnTheBoard > 0)) {
+        let landMinesOnTheBoard = this.currentGame.statistics.landMinesOnTheBoard;
+        let landMinesUncovered = this.currentGame.statistics.landMinesUncovered;
+
+        if ((landMinesOnTheBoard === landMinesUncovered) && (landMinesOnTheBoard > 0)) {
 
             this.currentGame.statistics.isWin = true;
             this.consecutiveWins.value = this.consecutiveWins.value + 1;
@@ -657,6 +682,58 @@ class GameStore {
             this.checkPastGamesForAchievements();
         } else {
             previousRankings = this.defaultRankings;
+        }
+    }
+
+    @action checkForThinModeOnAndroid() {
+        if (Platform.OS === 'android') {
+
+            let isAndroidThinMode = false;
+            let maxSquares = this.defaultGame.thinModeMaximumCols;
+            let usableBoard = (Math.min(Dimensions.get('window').width, Dimensions.get('window').height) - 40);
+            let updated = false;
+
+            if ((usableBoard <= 600) && (usableBoard > 500)) {
+                isAndroidThinMode = true;
+                maxSquares = 12;
+
+                this.currentDifficultySettings = {
+                    easy: this.difficultySettings.easy_12,
+                    intermediate: this.difficultySettings.intermediate_12,
+                    advanced: this.difficultySettings.advanced_12,
+                    expert: this.difficultySettings.expert_12,
+                }
+
+            } else if (usableBoard <= 500) {
+                isAndroidThinMode = true;
+                maxSquares = 9;
+
+                this.currentDifficultySettings = {
+                    easy: this.difficultySettings.easy_9,
+                    intermediate: this.difficultySettings.intermediate_9,
+                    advanced: this.difficultySettings.advanced_9,
+                    expert: this.difficultySettings.expert_9,
+                }
+
+            }
+
+            if (this.currentGame.isAndroidThinMode !== isAndroidThinMode) {
+                this.currentGame.isAndroidThinMode = isAndroidThinMode;
+                this.defaultGame.isAndroidThinMode = isAndroidThinMode;
+                updated = true;
+            }
+            if (this.defaultGame.thinModeMaximumCols !== maxSquares) {
+                this.defaultGame.thinModeMaximumCols = maxSquares;
+                this.currentGame.thinModeMaximumCols = maxSquares;
+                updated = true;
+            }
+
+            if (this.currentGame.squaresWide > this.defaultGame.thinModeMaximumCols) {
+                this.setBoardSize(maxSquares, this.defaultGame.squaresTall);
+                updated = true;
+            }
+
+            if (updated) { this.updateSettingsRefreshBoard(); }
         }
     }
 

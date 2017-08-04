@@ -16,6 +16,7 @@ export default class Splash extends React.Component {
 
     constructor (props) {
         super(props);
+        this.props.store.gameStore.checkForThinModeOnAndroid();
     }
 
     static navigationOptions = ({ navigation, screenProps }) => ({
